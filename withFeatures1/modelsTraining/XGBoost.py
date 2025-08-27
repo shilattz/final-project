@@ -20,7 +20,7 @@ task = Task.init(
 )
 
 #  data
-df = pd.read_csv("withFeatures/full_all_features_faulty_dataset.csv")
+df = pd.read_csv("withFeatures1/full_all_features_faulty_dataset.csv")
 
 sensor_order = ['sensor_1', 'sensor_2', 'sensor_3', 'sensor_4', 'sensor_5']
 label_map = {name: i for i, name in enumerate(sensor_order)}
