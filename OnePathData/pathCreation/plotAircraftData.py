@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
 
 # Load the CSV file
-df = pd.read_csv("one_aircraft_data.csv")
+df = pd.read_csv("OnePathData/pathCreation/one_aircraft_data.csv")
 
 # Drop rows with missing values in critical columns
 df = df.dropna(subset=['latitude', 'longitude', 'baro_altitude'])

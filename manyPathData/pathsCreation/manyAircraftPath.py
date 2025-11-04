@@ -15,12 +15,12 @@ from datetime import datetime, timezone
 SEED = 42
 random.seed(SEED); np.random.seed(SEED)
 
-NUM_ROUTES        = 400           # how many routes to create
+NUM_ROUTES        = 10000           # how many routes to create
 SAMPLE_EVERY_SEC  = 5             # sampling interval
 DURATION_SEC_MIN  = 8*60          # per-route duration range
 DURATION_SEC_MAX  = 15*60
 
-# Geographic area (center + radius). Change for your region.
+# Geographic area (center + radius).
 AREA_CENTER_LAT   = 32.0          # e.g., Israel-ish
 AREA_CENTER_LON   = 34.8
 AREA_RADIUS_KM    = 120.0         # routes kept roughly within this radius
@@ -41,7 +41,7 @@ HEADING_CHANGE_DEG_PER_MIN = (2.0, 8.0)  # slow wandering
 HEADING_NOISE_DEG          = 1.0
 
 # Output CSV
-OUT_CSV = "synthetic_routes.csv"
+OUT_CSV = "synthetic_routes_10000.csv"
 
 # --------------- Helpers ----------------
 LAT_KM = 111.0

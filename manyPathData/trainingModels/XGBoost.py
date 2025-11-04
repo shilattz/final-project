@@ -25,7 +25,6 @@ task = Task.init(
 SEED = 42
 np.random.seed(SEED)
 
-# CSV_PATH = "manyPathData/faultySensors/full_faulty_dataset.csv"
 CSV_PATH = "manyPathData/faultySensors/full_faulty_dataset.csv"
 
 SENSORS = [f"sensor_{i}" for i in range(1, 6)]
@@ -335,7 +334,7 @@ def train_xgb_binary_rank(X: pd.DataFrame):
     test_acc = float((merged["pred_sensor"] == merged["true_sensor"]).mean())
     print(f"\nTest (route-level) accuracy: {test_acc*100:.1f}%  (routes={merged.shape[0]})")
 
-    # classification report (printed only)
+    # classification report
     print("\nClassification report (route-level):")
     print(classification_report(merged["true_idx"], merged["pred_idx"],
                                 target_names=SENSORS, digits=3))
@@ -344,7 +343,7 @@ def train_xgb_binary_rank(X: pd.DataFrame):
     cm = confusion_matrix(merged["true_idx"], merged["pred_idx"], labels=list(range(5)))
     print("\nConfusion matrix (route-level):\n", cm)
 
-    # ------ ClearML: ONLY these two ------
+    # ------ ClearML ------
     logger = task.get_logger()
 
     # 1) Test Accuracy (scalar)

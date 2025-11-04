@@ -16,7 +16,7 @@ from clearml import Task
 # -------------------- ClearML task --------------------
 task = Task.init(
     project_name="Sensores Fault Detection - many paths",
-    task_name="Transformer",
+    task_name="Transformer+dim_feedforward=128+optimizer+label_smoothing=0.05",
     task_type=Task.TaskTypes.training
 )
 
@@ -39,7 +39,7 @@ GPS_COLS = ["lat", "lon", "alt"]
 ALL_COLS = ANG_COLS + GPS_COLS
 SENSOR2IDX = {s: i for i, s in enumerate(SENSORS)}
 
-# ==================== Feature engineering (mirrors your XGBoost code) ====================
+# ==================== Feature engineering ====================
 def _safe_array(arr):
     x = np.asarray(arr, dtype=float)
     if x.size == 0 or np.all(np.isnan(x)):
@@ -112,6 +112,8 @@ def series_stats(s: pd.Series, prefix: str):
         f"{prefix}_spike_frac": _f(spike),
     }
 
+#6_378_000.0 
+# radius earth
 R_EARTH_M = 6_371_000.0
 def haversine_m(lat1, lon1, lat2, lon2):
     lat1, lon1, lat2, lon2 = map(np.radians, [lat1, lon1, lat2, lon2])
@@ -310,24 +312,74 @@ val_loader   = DataLoader(SensorDatasetDual(X_va, T_va, y_va), batch_size=32, sh
 test_loader  = DataLoader(SensorDatasetDual(X_te, T_te, y_te), batch_size=32, shuffle=False)
 
 # -------------------- Model --------------------
+# class SensorClassifierDualEncoder(nn.Module):
+#     def __init__(self, input_dim, embed_dim=64, num_classes=5):
+#         super().__init__()
+#         self.gps_encoder = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.ReLU())
+#         self.angular_encoder = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.ReLU())
+#         # enc_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=4, batch_first=True)
+#         enc_layer = nn.TransformerEncoderLayer(
+#             d_model=embed_dim,
+#             nhead=4,
+#             dim_feedforward=128,   
+#             dropout=0.10,
+#             batch_first=True
+#         )
+#         self.transformer = nn.TransformerEncoder(enc_layer, num_layers=2)
+#         self.fc1 = nn.Linear(5 * embed_dim, 128)
+#         self.dropout1 = nn.Dropout(0.3)
+#         self.fc2 = nn.Linear(128, 64)
+#         self.dropout2 = nn.Dropout(0.2)
+#         self.out = nn.Linear(64, num_classes)
+
+#     def forward(self, x, sensor_types):
+#         # runtime sanitization as extra guard
+#         x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
+
+#         B, S, _ = x.shape
+#         embs = []
+#         for i in range(S):
+#             xi = x[:, i, :]
+#             is_gps = (sensor_types[:, i] == 0)
+#             e = torch.zeros((B, self.gps_encoder[0].out_features), device=x.device)
+#             if is_gps.any():
+#                 e[is_gps] = self.gps_encoder(xi[is_gps])
+#             if (~is_gps).any():
+#                 e[~is_gps] = self.angular_encoder(xi[~is_gps])
+#             embs.append(e.unsqueeze(1))
+#         x = torch.cat(embs, dim=1)
+#         x = self.transformer(x)
+#         x = x.view(B, -1)
+#         x = self.dropout1(self.fc1(x))
+#         x = self.dropout2(self.fc2(x))
+#         return self.out(x)
 class SensorClassifierDualEncoder(nn.Module):
     def __init__(self, input_dim, embed_dim=64, num_classes=5):
         super().__init__()
         self.gps_encoder = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.ReLU())
         self.angular_encoder = nn.Sequential(nn.Linear(input_dim, embed_dim), nn.ReLU())
-        enc_layer = nn.TransformerEncoderLayer(d_model=embed_dim, nhead=4, batch_first=True)
+
+        # <-- נשאר כמו ששינית קודם: feedforward קטן + dropout -->
+        enc_layer = nn.TransformerEncoderLayer(
+            d_model=embed_dim,
+            nhead=4,
+            dim_feedforward=128,
+            dropout=0.10,
+            batch_first=True
+        )
         self.transformer = nn.TransformerEncoder(enc_layer, num_layers=2)
-        self.fc1 = nn.Linear(5 * embed_dim, 128)
-        self.dropout1 = nn.Dropout(0.3)
-        self.fc2 = nn.Linear(128, 64)
-        self.dropout2 = nn.Dropout(0.2)
-        self.out = nn.Linear(64, num_classes)
+
+        # *** שינוי מרכזי: ראש פר-חיישן שמחזיר לוגיט בודד לכל טוקן/חיישן ***
+        self.token_head = nn.Sequential(
+            nn.Linear(embed_dim, 64), nn.ReLU(), nn.Dropout(0.20),
+            nn.Linear(64, 1)  # one logit per sensor token
+        )
 
     def forward(self, x, sensor_types):
-        # runtime sanitization as extra guard
         x = torch.nan_to_num(x, nan=0.0, posinf=0.0, neginf=0.0)
-
         B, S, _ = x.shape
+
+        # dual encoders by type
         embs = []
         for i in range(S):
             xi = x[:, i, :]
@@ -338,20 +390,23 @@ class SensorClassifierDualEncoder(nn.Module):
             if (~is_gps).any():
                 e[~is_gps] = self.angular_encoder(xi[~is_gps])
             embs.append(e.unsqueeze(1))
-        x = torch.cat(embs, dim=1)
-        x = self.transformer(x)
-        x = x.view(B, -1)
-        x = self.dropout1(self.fc1(x))
-        x = self.dropout2(self.fc2(x))
-        return self.out(x)
+
+        x = torch.cat(embs, dim=1)        # [B, 5, embed_dim]
+        x = self.transformer(x)           # [B, 5, embed_dim]
+
+        # *** במקום flatten או mean: ניקוד לכל חיישן בנפרד ***
+        logits_per_sensor = self.token_head(x).squeeze(-1)  # [B, 5]
+        return logits_per_sensor
+
 
 # -------------------- Train --------------------
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = SensorClassifierDualEncoder(input_dim=len(feat_cols)).to(device)
 
 class_weights = compute_class_weight(class_weight='balanced', classes=np.unique(y_tr), y=y_tr)
-criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float, device=device))
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+criterion = nn.CrossEntropyLoss(weight=torch.tensor(class_weights, dtype=torch.float, device=device), label_smoothing=0.05)
+# optimizer = torch.optim.Adam(model.parameters(), lr=1e-3)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-3, weight_decay=1e-4)
 
 EPOCHS = 20
 best_val = -1.0

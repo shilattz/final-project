@@ -22,12 +22,13 @@ from mpl_toolkits.mplot3d import Axes3D  # noqa: F401 (needed for 3D)
 
 # ========= Config =========
 INPUT_CSV  = "synthetic_routes.csv"
-OUTPUT_CSV = "sensor_observations.csv"
+OUTPUT_CSV = "manyPathData/sensoreObservation/sensor_observations.csv"
 
 # Global, deterministic sensor layout
+
 NUM_SENSORS      = 5
-GPS_SENSORS      = [1, 5]      # sensor_1 and sensor_5 are GPS
-ANGULAR_SENSORS  = [i for i in range(1, NUM_SENSORS+1) if i not in GPS_SENSORS]
+GPS_SENSORS      = [4, 5]      # sensor_4 and sensor_5 are GPS
+ANGULAR_SENSORS = [1, 2, 3]    # the rest are angular
 RADIUS_FRACTION  = 0.20        # radius as fraction of global lat/lon span
 SENSOR_ALT_M     = 100.0       # ground sensor altitude (meters)
 
@@ -86,18 +87,26 @@ radius_lon = (max_lon - min_lon) * RADIUS_FRACTION
 
 # deterministic angles:
 # put GPS at opposite bearings (0°, 180°), others evenly fill the gaps
-angles = []
-if NUM_SENSORS >= 2 and len(GPS_SENSORS) == 2:
-    angles = [0.0, math.pi]  # positions for sensor_1 and sensor_5
-    remain = NUM_SENSORS - 2
-    if remain > 0:
-        # spread remaining sensors between (0, 2π), skipping the two fixed angles
-        # Simple choice: interleave extra points roughly evenly
-        # e.g., for 3 remaining -> ~72°, 144°, 216°
-        extra = [2*math.pi * (k+1) / (remain+1) for k in range(remain)]
-        angles += extra
-else:
-    angles = [2*math.pi * i / NUM_SENSORS for i in range(NUM_SENSORS)]
+# angles = []
+# if NUM_SENSORS >= 2 and len(GPS_SENSORS) == 2:
+#     angles = [0.0, math.pi]  # positions for sensor_1 and sensor_5
+#     remain = NUM_SENSORS - 2
+#     if remain > 0:
+#         # spread remaining sensors between (0, 2π), skipping the two fixed angles
+#         # Simple choice: interleave extra points roughly evenly
+#         # e.g., for 3 remaining -> ~72°, 144°, 216°
+#         extra = [2*math.pi * (k+1) / (remain+1) for k in range(remain)]
+#         angles += extra
+# else:
+#     angles = [2*math.pi * i / NUM_SENSORS for i in range(NUM_SENSORS)]
+
+
+# deterministic angles: evenly spaced, then pin GPS to 0° and 180°
+angles = [2*math.pi * i / NUM_SENSORS for i in range(NUM_SENSORS)]
+if len(GPS_SENSORS) == 2:
+    angles[GPS_SENSORS[0] - 1] = 0.0         # sensor_4 -> 0°
+    angles[GPS_SENSORS[1] - 1] = math.pi     # sensor_5 -> 180°
+
 
 # Build sensor metadata (fixed once for all routes)
 sensors = []
@@ -140,9 +149,9 @@ for _, row in df.iterrows():
                 "lat": lat,
                 "lon": lon,
                 "alt": altm,
-                "sensor_lat": s["lat"],
-                "sensor_lon": s["lon"],
-                "sensor_alt_m": s["alt_m"],
+            #     "sensor_lat": s["lat"],
+            #     "sensor_lon": s["lon"],
+            #     "sensor_alt_m": s["alt_m"],
             }
         else:
             # Angular/Range observes relative geometry
@@ -158,9 +167,9 @@ for _, row in df.iterrows():
                 "range_km": rng_km,
                 "yaw_deg": yaw_deg,
                 "pitch_deg": pitch_deg,
-                "sensor_lat": s["lat"],
-                "sensor_lon": s["lon"],
-                "sensor_alt_m": s["alt_m"],
+            #     "sensor_lat": s["lat"],
+            #     "sensor_lon": s["lon"],
+            #     "sensor_alt_m": s["alt_m"],
             }
         records.append(rec)
 
