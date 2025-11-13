@@ -9,7 +9,7 @@ a trajectory, and includes a label - which sensor is faulty.
 '''
 
 # observation file (without noise)
-base_observations_df = pd.read_csv("sensor_observations.csv")
+base_observations_df = pd.read_csv("OnePathData/sensorObservation/sensor_observations.csv")
 
 # How many iterations to perform (each with a different faulty sensor)
 num_runs = 200
@@ -44,7 +44,7 @@ for run_id in range(num_runs):
     # Randomly selecting a faulty sensor
     faulty_sensor = np.random.choice(observations_df['sensor'].unique())
 
-     # Adding noise according to the type of sensor and whether it is faulty
+    # Adding noise according to the type of sensor and whether it is faulty
     noisy_df = observations_df.copy()
     for i, row in noisy_df.iterrows():
         sensor = row['sensor']
@@ -139,7 +139,7 @@ full_dataset = pd.concat(new_feature_dfs, ignore_index=True)
 
 
 # saving to the file
-full_dataset.to_csv("full_all_features_faulty_dataset.csv", index=False)
+full_dataset.to_csv("OnePathData/withFeatures/modelsTraining/full_all_features_faulty_dataset2.csv", index=False)
 
 print(f"\n {num_runs} runs were created with a different faulty sensor each time.")
 print("The file is saved as: full_all_features_faulty_dataset.csv")

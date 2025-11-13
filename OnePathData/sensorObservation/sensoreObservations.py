@@ -10,7 +10,7 @@ It generates sensor readings over time and saves them to a CSV - sensor_observat
 '''
 
 # one aircraft data
-df = pd.read_csv("one_aircraft_data.csv")
+df = pd.read_csv("OnePathData/pathCreation/one_aircraft_data.csv")
 df = df.dropna(subset=['latitude', 'longitude', 'baro_altitude', 'timestamp'])
 
 # the boundaries of the area
@@ -97,7 +97,7 @@ obs_df = pd.DataFrame(results)
 # print(obs_df.head())
 
 # save to file
-obs_df.to_csv("sensor_observations.csv", index=False)
+obs_df.to_csv("sensor_observations2.csv", index=False)
 
 
 

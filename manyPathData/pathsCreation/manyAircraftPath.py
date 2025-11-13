@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 SEED = 42
 random.seed(SEED); np.random.seed(SEED)
 
-NUM_ROUTES        = 10000           # how many routes to create
+NUM_ROUTES        = 400          # how many routes to create
 SAMPLE_EVERY_SEC  = 5             # sampling interval
 DURATION_SEC_MIN  = 8*60          # per-route duration range
 DURATION_SEC_MAX  = 15*60

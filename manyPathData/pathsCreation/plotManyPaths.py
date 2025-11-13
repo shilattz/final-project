@@ -6,7 +6,7 @@ from matplotlib.cm import get_cmap
 from mpl_toolkits.mplot3d import Axes3D  # noqa: F401
 
 # === CONFIG ===
-CSV_PATH = "synthetic_routes_10000.csv"  # change if needed
+CSV_PATH = "synthetic_routes.csv"  # change if needed
 ROUTE_COL = "route_id"
 LAT_COL, LON_COL, ALT_COL = "latitude", "longitude", "baro_altitude"   # degrees, degrees, meters
 
